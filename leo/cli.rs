@@ -110,9 +110,9 @@ pub trait CLI {
             false => logger::init_logger("leo", 1),
         }
 
-        if arguments.subcommand().0 != "update" {
-            Updater::print_cli();
-        }
+        // if arguments.subcommand().0 != "update" {
+        //     Updater::print_cli();
+        // }
 
         let options = Self::parse(arguments)?;
         let _output = Self::output(options)?;

@@ -80,8 +80,7 @@ fn main() -> Result<(), CLIError> {
                 true => logger::init_logger("leo", 2),
                 false => logger::init_logger("leo", 1),
             }
-
-            Updater::print_cli();
+            // Updater::print_cli();
 
             help.print_help()?;
             Ok(())
