@@ -144,11 +144,10 @@ impl CLI for BuildCommand {
                 let temporary_program = program.clone();
                 let output = temporary_program.compile_constraints(&mut cs)?;
 
-                tracing::debug!("Compiled constraints - {:#?}", output);
                 tracing::debug!("Number of constraints - {:#?}", cs.num_constraints());
 
                 // Serialize the circuit
-                let circuit_object = SerializedCircuit::from(cs);
+                let circuit_object = SerializedCircuit::new(cs, output);
                 let json = circuit_object.to_json_string().unwrap();
                 // println!("json: {}", json);
 

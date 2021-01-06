@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::errors::{FunctionError, ImportError, OutputBytesError, OutputFileError};
+use crate::errors::{FunctionError, ImportError, OutputError, OutputFileError};
 use leo_grammar::ParserError;
 use leo_imports::ImportParserError;
 use leo_input::InputParserError;
@@ -61,7 +61,7 @@ pub enum CompilerError {
     OutputError(#[from] OutputFileError),
 
     #[error("{}", _0)]
-    OutputStringError(#[from] OutputBytesError),
+    OutputStringError(#[from] OutputError),
 
     #[error("{}", _0)]
     ParserError(#[from] ParserError),

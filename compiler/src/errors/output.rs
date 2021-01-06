@@ -19,20 +19,20 @@ use leo_ast::{Error as FormattedError, Span};
 use std::path::Path;
 
 #[derive(Debug, Error)]
-pub enum OutputBytesError {
+pub enum OutputError {
     #[error("{}", _0)]
     Error(#[from] FormattedError),
 }
 
-impl OutputBytesError {
+impl OutputError {
     pub fn set_path(&mut self, path: &Path) {
         match self {
-            OutputBytesError::Error(error) => error.set_path(path),
+            OutputError::Error(error) => error.set_path(path),
         }
     }
 
     fn new_from_span(message: String, span: Span) -> Self {
-        OutputBytesError::Error(FormattedError::new_from_span(message, span))
+        OutputError::Error(FormattedError::new_from_span(message, span))
     }
 
     pub fn not_enough_registers(span: Span) -> Self {

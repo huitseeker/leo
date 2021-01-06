@@ -21,7 +21,7 @@ use crate::errors::{
     FieldError,
     GroupError,
     IntegerError,
-    OutputBytesError,
+    OutputError,
     StatementError,
     ValueError,
 };
@@ -53,7 +53,7 @@ pub enum FunctionError {
     IntegerError(#[from] IntegerError),
 
     #[error("{}", _0)]
-    OutputStringError(#[from] OutputBytesError),
+    OutputStringError(#[from] OutputError),
 
     #[error("{}", _0)]
     StatementError(#[from] StatementError),

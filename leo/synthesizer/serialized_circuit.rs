@@ -15,6 +15,7 @@
 // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::synthesizer::{CircuitSynthesizer, SerializedField, SerializedIndex};
+use leo_compiler::Output;
 
 use snarkos_curves::bls12_377::Bls12_377;
 use snarkos_errors::curves::FieldError;
@@ -34,6 +35,8 @@ pub struct SerializedCircuit {
 
     pub input_assignment: Vec<SerializedField>,
     pub aux_assignment: Vec<SerializedField>,
+    pub program_input_range: (usize, usize),
+    pub output_indices: Vec<usize>,
 
     pub at: Vec<Vec<(SerializedField, SerializedIndex)>>,
     pub bt: Vec<Vec<(SerializedField, SerializedIndex)>>,
@@ -48,10 +51,8 @@ impl SerializedCircuit {
     pub fn from_json_string(json: &str) -> Result<Self, serde_json::Error> {
         serde_json::from_str(json)
     }
-}
 
-impl<E: PairingEngine> From<CircuitSynthesizer<E>> for SerializedCircuit {
-    fn from(synthesizer: CircuitSynthesizer<E>) -> Self {
+    pub fn new<E: PairingEngine>(synthesizer: CircuitSynthesizer<E>, output: Output) -> Self {
         let num_inputs = synthesizer.input_assignment.len();
         let num_aux = synthesizer.aux_assignment.len();
         let num_constraints = synthesizer.num_constraints();
@@ -61,10 +62,19 @@ impl<E: PairingEngine> From<CircuitSynthesizer<E>> for SerializedCircuit {
             assignments.iter().map(SerializedField::from).collect()
         }
 
+        // Serialize input assignments.
         let input_assignment = get_serialized_assignments::<E>(&synthesizer.input_assignment);
+
+        // Serialize aux assignments.
         let aux_assignment = get_serialized_assignments::<E>(&synthesizer.aux_assignment);
 
-        // Serialize constraints
+        // Serialize program input indices.
+        let program_input_range = output.input_range();
+
+        // Serialize output indices.
+        let output_indices = output.output_indices();
+
+        // Serialize constraints.
         fn get_serialized_constraints<E: PairingEngine>(
             constraints: &[(E::Fr, Index)],
         ) -> Vec<(SerializedField, SerializedIndex)> {
@@ -85,18 +95,16 @@ impl<E: PairingEngine> From<CircuitSynthesizer<E>> for SerializedCircuit {
         let mut ct = Vec::with_capacity(num_constraints);
 
         for i in 0..num_constraints {
-            // Serialize at[i]
+            // Serialize at[i].
 
             let a_constraints = get_serialized_constraints::<E>(&synthesizer.at[i]);
             at.push(a_constraints);
 
-            // Serialize bt[i]
-
+            // Serialize bt[i].
             let b_constraints = get_serialized_constraints::<E>(&synthesizer.bt[i]);
             bt.push(b_constraints);
 
-            // Serialize ct[i]
-
+            // Serialize ct[i].
             let c_constraints = get_serialized_constraints::<E>(&synthesizer.ct[i]);
             ct.push(c_constraints);
         }
@@ -107,6 +115,8 @@ impl<E: PairingEngine> From<CircuitSynthesizer<E>> for SerializedCircuit {
             num_constraints,
             input_assignment,
             aux_assignment,
+            program_input_range,
+            output_indices,
             at,
             bt,
             ct,

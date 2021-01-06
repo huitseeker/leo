@@ -20,14 +20,14 @@ use crate::{
     errors::FunctionError,
     program::{new_scope, ConstrainedProgram},
     GroupType,
-    OutputBytes,
+    Output,
 };
 
 use leo_ast::{Expression, Function, FunctionInput, Identifier, Input};
 
 use snarkos_models::{
     curves::{Field, PrimeField},
-    gadgets::r1cs::ConstraintSystem,
+    gadgets::r1cs::{ConstraintSystem, Index},
 };
 
 impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
@@ -37,13 +37,15 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
         scope: &str,
         function: Function,
         input: Input,
-    ) -> Result<OutputBytes, FunctionError> {
+    ) -> Result<Output, FunctionError> {
         let function_name = new_scope(scope, function.get_name());
         let registers = input.get_registers();
 
         // Iterate over main function input variables and allocate new values
         let mut input_variables = Vec::with_capacity(function.input.len());
-        for input_model in function.input.clone().into_iter() {
+        let mut cs_input_indices: Vec<Index> = Vec::with_capacity(0);
+
+        for (i, input_model) in function.input.clone().into_iter().enumerate() {
             let (input_id, value) = match input_model {
                 FunctionInput::InputKeyword(keyword) => {
                     let input_id = Identifier::new_with_span(&keyword.to_string(), &keyword.span);
@@ -70,6 +72,10 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
             // Store input as variable with {function_name}_{identifier_name}
             let input_name = new_scope(&function_name, &input_id.to_string());
 
+            // Store constraint system input variable indices for serialization.
+            let mut indices = value.get_constraint_system_indices(cs.ns(|| format!("input index {}", i)));
+            cs_input_indices.append(&mut indices);
+
             // Store a new variable for every allocated main function input
             self.store(input_name, value);
 
@@ -78,7 +84,11 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
 
         let span = function.span.clone();
         let result_value = self.enforce_function(cs, scope, &function_name, function, input_variables, "")?;
-        let output_bytes = OutputBytes::new_from_constrained_value(registers, result_value, span)?;
+
+        // Lookup result value constraint variable indices.
+        let cs_output_indices = result_value.get_constraint_system_indices(cs);
+
+        let output_bytes = Output::new(registers, result_value, cs_input_indices, cs_output_indices, span)?;
 
         Ok(output_bytes)
     }

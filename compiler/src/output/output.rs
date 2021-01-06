@@ -14,27 +14,48 @@
 // You should have received a copy of the GNU General Public License
 // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{errors::OutputBytesError, ConstrainedValue, GroupType, REGISTERS_VARIABLE_NAME};
+use crate::{errors::OutputError, ConstrainedValue, GroupType, REGISTERS_VARIABLE_NAME};
 use leo_ast::{Parameter, Registers, Span};
 
 use snarkos_models::curves::{Field, PrimeField};
 
 use serde::{Deserialize, Serialize};
+use snarkos_models::gadgets::r1cs::Index;
 
 /// Serialized program return output.
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
-pub struct OutputBytes(Vec<u8>);
-
-impl OutputBytes {
+pub struct Output {
+    bytes: Vec<u8>,
+    input_indices: Vec<usize>,
+    output_indices: Vec<usize>,
+}
+impl Output {
     pub fn bytes(&self) -> &Vec<u8> {
-        &self.0
+        &self.bytes
     }
 
-    pub fn new_from_constrained_value<F: Field + PrimeField, G: GroupType<F>>(
+    pub fn input_indices(&self) -> Vec<usize> {
+        self.input_indices.to_owned()
+    }
+
+    pub fn input_range(&self) -> (usize, usize) {
+        let first = self.input_indices.first().map(|num| num.to_owned()).unwrap_or(0);
+        let last = self.input_indices.last().map(|num| num.to_owned()).unwrap_or(0);
+
+        (first, last)
+    }
+
+    pub fn output_indices(&self) -> Vec<usize> {
+        self.output_indices.to_owned()
+    }
+
+    pub fn new<F: Field + PrimeField, G: GroupType<F>>(
         registers: &Registers,
         value: ConstrainedValue<F, G>,
+        cs_input_indices: Vec<Index>,
+        cs_output_indices: Vec<Index>,
         span: Span,
-    ) -> Result<Self, OutputBytesError> {
+    ) -> Result<Self, OutputError> {
         let return_values = match value {
             ConstrainedValue::Tuple(values) => values,
             value => vec![value],
@@ -51,7 +72,7 @@ impl OutputBytes {
 
         // Return an error if we do not have enough return registers
         if register_values.len() < return_values.len() {
-            return Err(OutputBytesError::not_enough_registers(span));
+            return Err(OutputError::not_enough_registers(span));
         }
 
         // Manually construct result string
@@ -66,19 +87,31 @@ impl OutputBytes {
             let type_ = parameter.type_;
             let value = value.to_string();
 
-            let format = format!("{}: {} = {};\n", name, type_, value,);
+            let format = format!("{}: {} = {};\n", name, type_, value);
 
             string.push_str(&format);
         }
 
         let bytes = string.into_bytes();
 
-        Ok(Self(bytes))
+        // Serialize constraint system indices.
+        let input_indices = indices_to_usize(cs_input_indices);
+        let output_indices = indices_to_usize(cs_output_indices);
+
+        Ok(Self {
+            bytes,
+            input_indices,
+            output_indices,
+        })
     }
 }
 
-impl From<Vec<u8>> for OutputBytes {
-    fn from(bytes: Vec<u8>) -> Self {
-        Self(bytes)
-    }
+fn indices_to_usize(indices: Vec<Index>) -> Vec<usize> {
+    indices
+        .iter()
+        .map(|index| match index {
+            Index::Input(index) => index.to_owned(),
+            Index::Aux(index) => index.to_owned(),
+        })
+        .collect::<Vec<_>>()
 }

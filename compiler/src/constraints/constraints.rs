@@ -16,15 +16,7 @@
 
 //! Generates R1CS constraints for a compiled Leo program.
 
-use crate::{
-    errors::CompilerError,
-    new_scope,
-    ConstrainedProgram,
-    ConstrainedValue,
-    GroupType,
-    OutputBytes,
-    OutputFile,
-};
+use crate::{errors::CompilerError, new_scope, ConstrainedProgram, ConstrainedValue, GroupType, Output, OutputFile};
 use leo_ast::{Input, Program};
 use leo_imports::ImportParser;
 use leo_input::LeoInputParser;
@@ -41,7 +33,7 @@ pub fn generate_constraints<F: Field + PrimeField, G: GroupType<F>, CS: Constrai
     program: Program,
     input: Input,
     imported_programs: &ImportParser,
-) -> Result<OutputBytes, CompilerError> {
+) -> Result<Output, CompilerError> {
     let mut resolved_program = ConstrainedProgram::<F, G>::new();
     let program_name = program.get_name();
     let main_function_name = new_scope(&program_name, "main");
